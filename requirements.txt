@@ -6,5 +6,5 @@ numpy
 matplotlib
 keras
 pandas
-scikit-learnpip
+scikit-learn
 tensorflow
