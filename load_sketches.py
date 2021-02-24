@@ -1,8 +1,16 @@
 import numpy as np
+import os
 from sklearn.utils import shuffle
 
+# Utility function to handle various os paths
+def allround_path(path_to_data = ""):
+    my_path = os.path.abspath(os.path.dirname(__file__))
+    path = os.path.join(my_path, path_to_data)
+    return path
 
 def load_sketches(path_to_data = "", doShuffle=True):
+    
+    path_to_data = allround_path(path_to_data)
 
     cat = np.load(path_to_data + "cat.npy")
     dog = np.load(path_to_data + "dog.npy")
