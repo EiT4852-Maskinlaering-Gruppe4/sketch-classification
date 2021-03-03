@@ -14,7 +14,7 @@ model.add(Flatten())
 model.add(Dense(700, activation='relu'))
 model.add(Dropout(0.3))
 model.add(Dense(350, activation='relu'))
-model.add(Dense(6, activation='softmax'))
+model.add(Dense(5, activation='softmax'))
 
 early_stop = EarlyStopping(monitor="val_loss",
                            min_delta=0,
@@ -35,49 +35,47 @@ train_set = np.reshape(train_set, (train_set.shape[0], 28, 28, 1))
 
 # Trains the model and saves the history of the training
 history = model.fit(train_set, train_labels, batch_size=64, epochs=4, validation_split=0.3, callbacks=[early_stop])
-
-model.summary()
 ```
 
 # Summary
 
 ```bash
 Epoch 1/4
-5279/5279 [==============================] - 130s 25ms/step - loss: 0.7803 - accuracy: 0.6896 - val_loss: 0.4279 - val_accuracy: 0.8682
+5279/5279 [==============================] - 122s 23ms/step - loss: 0.7634 - accuracy: 0.6853 - val_loss: 0.4602 - val_accuracy: 0.8471
 Epoch 2/4
-5279/5279 [==============================] - 115s 22ms/step - loss: 0.4567 - accuracy: 0.8282 - val_loss: 0.4628 - val_accuracy: 0.8802
+5279/5279 [==============================] - 121s 23ms/step - loss: 0.4964 - accuracy: 0.8043 - val_loss: 0.4662 - val_accuracy: 0.8663
 Epoch 3/4
-5279/5279 [==============================] - 116s 22ms/step - loss: 0.4012 - accuracy: 0.8491 - val_loss: 0.4617 - val_accuracy: 0.8937
-Model: "sequential_6"
+5279/5279 [==============================] - 122s 23ms/step - loss: 0.4229 - accuracy: 0.8369 - val_loss: 0.5372 - val_accuracy: 0.8434
+Model: "sequential"
 _________________________________________________________________
 Layer (type)                 Output Shape              Param #
 =================================================================
-conv2d_18 (Conv2D)           (None, 24, 24, 20)        520
+conv2d (Conv2D)              (None, 24, 24, 20)        520
 _________________________________________________________________
-max_pooling2d_18 (MaxPooling (None, 12, 12, 20)        0
+max_pooling2d (MaxPooling2D) (None, 12, 12, 20)        0
 _________________________________________________________________
-conv2d_19 (Conv2D)           (None, 8, 8, 32)          16032
+conv2d_1 (Conv2D)            (None, 8, 8, 32)          16032
 _________________________________________________________________
-max_pooling2d_19 (MaxPooling (None, 4, 4, 32)          0
+max_pooling2d_1 (MaxPooling2 (None, 4, 4, 32)          0
 _________________________________________________________________
-conv2d_20 (Conv2D)           (None, 2, 2, 40)          11560
+conv2d_2 (Conv2D)            (None, 2, 2, 40)          11560
 _________________________________________________________________
-max_pooling2d_20 (MaxPooling (None, 1, 1, 40)          0
+max_pooling2d_2 (MaxPooling2 (None, 1, 1, 40)          0
 _________________________________________________________________
-dropout_12 (Dropout)         (None, 1, 1, 40)          0
+dropout (Dropout)            (None, 1, 1, 40)          0
 _________________________________________________________________
-flatten_6 (Flatten)          (None, 40)                0
+flatten (Flatten)            (None, 40)                0
 _________________________________________________________________
-dense_18 (Dense)             (None, 700)               28700
+dense (Dense)                (None, 700)               28700
 _________________________________________________________________
-dropout_13 (Dropout)         (None, 700)               0
+dropout_1 (Dropout)          (None, 700)               0
 _________________________________________________________________
-dense_19 (Dense)             (None, 350)               245350
+dense_1 (Dense)              (None, 350)               245350
 _________________________________________________________________
-dense_20 (Dense)             (None, 6)                 2106
+dense_2 (Dense)              (None, 5)                 1755
 =================================================================
-Total params: 304,268
-Trainable params: 304,268
+Total params: 303,917
+Trainable params: 303,917
 Non-trainable params: 0
 _________________________________________________________________
 ```
