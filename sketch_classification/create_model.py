@@ -13,7 +13,7 @@ from matplotlib import pyplot as plt
 
 # REMEMBER TO CHANGE THESE
 MODELNAME = 'ralf/b200-e8'
-PATH_TO_DATA = './sketches/'
+PATH_TO_DATA = 'sketch_classification/sketches/'
 
 BATCHES = 200
 EPOCHS = 9
