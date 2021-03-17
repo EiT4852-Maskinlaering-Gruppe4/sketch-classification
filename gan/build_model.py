@@ -8,19 +8,26 @@ from tensorflow.keras.models import Sequential, Model
 from tensorflow.keras.optimizers import Adam
 
 import matplotlib.pyplot as plt
+import time
 
-tf.get_logger().setLevel('ERROR')
+from export_images import import_images
 
-IMG_ROWS = 28
-IMG_COLS = 28
+import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+
+IMG_ROWS = 100
+IMG_COLS = 100
 CHANNELS = 3
-img_shape = (IMG_ROWS, IMG_COLS, CHANNELS)
+IMG_SHAPE = (IMG_ROWS, IMG_COLS, CHANNELS)
 
 MODELNAME = 'jon/b128-e50'
-BATCH_SIZE = 128
-EPOCHS = 50
+BATCH_SIZE = 256
+EPOCHS = 10
 
-def build_generator():
+CATEGORY = "Dog"
+PATH_TO_IMAGES = f"{os.getcwd()}/gan/Images/{CATEGORY}"
+
+def build_generator(img_shape):
 
     noise_shape = (100,)
 
@@ -46,8 +53,7 @@ def build_generator():
 
     return Model(noise, img)
 
-
-def build_discriminator():
+def build_discriminator(img_shape):
 
 
     model = Sequential()
@@ -66,16 +72,14 @@ def build_discriminator():
 
     return Model(img, validity)
 
+def train(n_epochs, batch_size, generator, discriminator, combined_model, train_data):
 
-def train():
+    half_batch = int(batch_size/2)
 
-    half_batch = BATCH_SIZE/2
-
-
-    for epoch in range(1,EPOCHS + 1):
-
-        idx = np.random.randint(0, X_train.shape[0], half_batch)
-        imgs = X_train[idx]
+    for epoch in range(1,n_epochs + 1):
+        time_now = time.time()
+        idx = np.random.randint(0, train_data.shape[0], half_batch)
+        imgs = train_data[idx]
 
 
         noise = np.random.normal(0, 1, (half_batch, 100))
@@ -96,59 +100,57 @@ def train():
         valid_y = np.array([1] * batch_size)
 
 
-        g_loss = combined.train_on_batch(noise, valid_y)
+        g_loss = combined_model.train_on_batch(noise, valid_y)
         
         
-        
-        print ("Epoch %d [D loss: %f, acc.: %.2f%%] [G loss: %f]" % (epoch, d_loss[0], 100*d_loss[1], g_loss))
+        duration = time.time() - time_now
+        print ("Epoch %d [D loss: %f, acc.: %.2f%%] [G loss: %f] Duration: %.2f" % (epoch, d_loss[0], 100*d_loss[1], g_loss, duration))
 
 
-
-# optimizer = Adam(0.0002, 0.5) # Learning rate, momentum
-
-
-# discriminator = build_discriminator()
-# discriminator.compile(loss='binary_crossentropy', optimizer=optimizer, metrics=['accuracy'])
-
-# generator = build_generator()
-# generator.compile(loss='binary_crossentropy', optimizer=optimizer)
+def main():
+    optimizer = Adam(0.0002, 0.5) # Learning rate, momentum
 
 
-# # 
-# z = Input(shape=(100,))
-# img = generator(z)
+    discriminator = build_discriminator(IMG_SHAPE)
+    discriminator.compile(loss='binary_crossentropy', optimizer=optimizer, metrics=['accuracy'])
 
-# # In the combined model, only the generator will be trained
-# discriminator.trainable = False 
-
-# valid = discriminator(img)
+    generator = build_generator(IMG_SHAPE)
+    generator.compile(loss='binary_crossentropy', optimizer=optimizer)
 
 
-# # The combined model
-# combined = Model(z, valid)
-# combined.compile(loss='binary_crossentropy', optimizer=optimizer)
+    # 
+    z = Input(shape=(100,))
+    img = generator(z)
 
-# # Train generator and discriminator together
-# train()
+    # In the combined model, only the generator will be trained
+    discriminator.trainable = False 
 
-
-# # Save the generator, discard the dicriminator
-# generator.save('./models/' + MODELNAME)
-
-optimizer = Adam(0.0002, 0.5) # Learning rate, momentum
-generator = build_generator()
-generator.compile(loss='binary_crossentropy', optimizer=optimizer)
-
-noise = np.random.normal(0,1,(1,100))
-gen_image = generator.predict(noise)
-
-print("image: ", gen_image[0])
-plt.imshow(gen_image[0], cmap="gray")
-plt.show()
+    valid = discriminator(img)
 
 
-discriminator = build_discriminator()
-discriminator.compile(loss='binary_crossentropy', optimizer=optimizer, metrics=['accuracy'])
+    # The combined model
+    combined_model = Model(z, valid)
+    combined_model.compile(loss='binary_crossentropy', optimizer=optimizer)
 
-acc = discriminator.predict(gen_image)
-print("acc: ", acc[0])
+    # Import images
+    train_data = import_images(PATH_TO_IMAGES, (IMG_ROWS,IMG_COLS), n_images=5000) / 255
+
+    # Train generator and discriminator together
+    train(EPOCHS, BATCH_SIZE, generator, discriminator, combined_model, train_data)
+
+    # Generate image from model
+    noise = np.random.normal(0,1,(1,100))
+    gen_image = generator.predict(noise)
+    print(gen_image[0][0][0])
+
+    gen_image += 1
+    gen_image /= 2
+
+    plt.imshow(gen_image[0], cmap="gray")
+    plt.show()
+
+    # Save the generator, discard the dicriminator
+    #generator.save('./models/' + MODELNAME)
+
+if __name__ == "__main__":
+    main()

@@ -3,6 +3,7 @@
 
 # Large data files
 *.npy
+*.jpg
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
