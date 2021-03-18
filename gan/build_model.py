@@ -22,7 +22,7 @@ IMG_SHAPE = (IMG_ROWS, IMG_COLS, CHANNELS)
 
 MODELNAME = 'jon/b128-e50'
 BATCH_SIZE = 256
-EPOCHS = 10
+EPOCHS = 1
 
 CATEGORY = "Dog"
 PATH_TO_IMAGES = f"{os.getcwd()}/gan/Images/{CATEGORY}"
@@ -72,19 +72,20 @@ def build_discriminator(img_shape):
 
     return Model(img, validity)
 
-def train(n_epochs, batch_size, generator, discriminator, combined_model, train_data):
+def train(n_epochs, batch_size, generator, discriminator, combined_model, image_data):
 
     half_batch = int(batch_size/2)
 
     for epoch in range(1,n_epochs + 1):
         time_now = time.time()
-        idx = np.random.randint(0, train_data.shape[0], half_batch)
-        imgs = train_data[idx]
+        idx = np.random.randint(0, image_data.shape[0], half_batch)
+        imgs = image_data[idx]
 
 
         noise = np.random.normal(0, 1, (half_batch, 100))
         gen_imgs = generator.predict(noise)
-
+        gen_imgs += 1
+        gen_imgs /= 2
 
         # Train discriminator on real images, then generated (fake), labeled 1 and 0 respectivly
         d_loss_real = discriminator.train_on_batch(imgs, np.ones((half_batch, 1)))
@@ -132,25 +133,27 @@ def main():
     combined_model = Model(z, valid)
     combined_model.compile(loss='binary_crossentropy', optimizer=optimizer)
 
-    # Import images
-    train_data = import_images(PATH_TO_IMAGES, (IMG_ROWS,IMG_COLS), n_images=5000) / 255
+    # Import images, convert to float [0 1]
+    image_data = import_images(PATH_TO_IMAGES, (IMG_ROWS,IMG_COLS), n_images=5000) / 255
+    image_data = image_data[:,:,:,::-1] # BRG -> RGB
 
     # Train generator and discriminator together
-    train(EPOCHS, BATCH_SIZE, generator, discriminator, combined_model, train_data)
+    train(EPOCHS, BATCH_SIZE, generator, discriminator, combined_model, image_data)
 
     # Generate image from model
     noise = np.random.normal(0,1,(1,100))
-    gen_image = generator.predict(noise)
-    print(gen_image[0][0][0])
 
+    gen_image = generator.predict(noise)
     gen_image += 1
     gen_image /= 2
+    #print(gen_image[0][0])
 
-    plt.imshow(gen_image[0], cmap="gray")
+
+    plt.imshow(gen_image[0])
     plt.show()
 
     # Save the generator, discard the dicriminator
-    #generator.save('./models/' + MODELNAME)
+    generator.save('./models/' + MODELNAME)
 
 if __name__ == "__main__":
     main()

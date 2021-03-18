@@ -43,7 +43,7 @@ def import_images(directory, img_size, n_images):
             break
 
     img_array = np.array(img_array)
-    #print(img_array[0])
+    # print(img_array[0])
     # cv2.imshow("hei", img_array[0])
     # cv2.waitKey(0)
     # cv2.destroyAllWindows()
