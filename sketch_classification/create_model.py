@@ -2,7 +2,7 @@ from load_sketches import load_sketches
 import numpy as np
 import tensorflow as tf
 import tensorflow.keras
-
+from keras.models import load_model
 
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense, Flatten, Conv2D, MaxPooling2D, Dropout
@@ -12,10 +12,10 @@ from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping
 from matplotlib import pyplot as plt
 
 # REMEMBER TO CHANGE THESE
-MODELNAME = 'ralf/b200-e8'
-PATH_TO_DATA = 'sketch_classification/sketches/'
+MODELNAME = 'ralf/TEMP.h5'
+PATH_TO_DATA = 'sketches/'
 
-BATCHES = 200
+BATCHES = 64
 EPOCHS = 9
 
 # Model definition
@@ -55,4 +55,5 @@ history = model.fit(train_set, train_labels, batch_size=BATCHES, epochs=EPOCHS, 
 
 model.summary()
 
-model.save('./models/' + MODELNAME)
+#model.save('/sketch_classification/models/' + MODELNAME)
+model.save('/Users/ralfleistad/Desktop/Skole/EiT/prosjekt/sketch-classification/sketch_classification/models/' + MODELNAME)
