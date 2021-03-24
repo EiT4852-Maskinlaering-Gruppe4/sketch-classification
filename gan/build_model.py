@@ -3,9 +3,11 @@ import numpy as np
 import tensorflow as tf
 import tensorflow.keras
 
-from tensorflow.keras.layers import Input, Dense, Reshape, Flatten, LeakyReLU, BatchNormalization
+from tensorflow.keras.layers import Input, Dense, Reshape, Flatten, LeakyReLU, BatchNormalization, Conv2D
 from tensorflow.keras.models import Sequential, Model
 from tensorflow.keras.optimizers import Adam
+
+from SpectralNormalizationKeras import ConvSN2D
 
 import matplotlib.pyplot as plt
 import time
@@ -15,55 +17,94 @@ from export_images import import_images
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
-IMG_ROWS = 100
-IMG_COLS = 100
+IMG_ROWS = 64
+IMG_COLS = 64
 CHANNELS = 3
 IMG_SHAPE = (IMG_ROWS, IMG_COLS, CHANNELS)
 
-MODELNAME = 'jon/b128-e50'
+# Change these!!
+TRAINER = 'jon'
 BATCH_SIZE = 256
 EPOCHS = 1
+MODELNAME = f"{TRAINER}/b{BATCH_SIZE}-e{EPOCHS}.h5"
 
 CATEGORY = "Dog"
 PATH_TO_IMAGES = f"{os.getcwd()}/gan/Images/{CATEGORY}"
 
-def build_generator(img_shape):
+# Layer templates
+leaky_relu_slope = 1
+weight_init_std = 1
+weight_init_mean = 1
+dropout_rate = 1
+weight_initializer = tf.keras.initializers.TruncatedNormal(stddev=weight_init_std, mean=weight_init_mean, seed=42)
+def transposed_conv(model, out_channels, ksize, stride_size, ptype='same'):
+    model.add(Conv2DTranspose(out_channels, (ksize, ksize),
+                              strides=(stride_size, stride_size), padding=ptype, 
+                              kernel_initializer=weight_initializer, use_bias=False))
+    model.add(BatchNormalization())
+    model.add(ReLU())
+    return model
 
-    noise_shape = (100,)
+def convSN(model, out_channels, ksize, stride_size):
+    model.add(ConvSN2D(out_channels, (ksize, ksize), strides=(stride_size, stride_size), padding='same',
+                     kernel_initializer=weight_initializer, use_bias=False))
+    model.add(BatchNormalization())
+    model.add(LeakyReLU(alpha=leaky_relu_slope))
+    #model.add(Dropout(dropout_rate))
+    return model
+
+def build_generator(img_shape):
+    noise_dim = 128
+
+    image_height = img_shape[0]
+    image_width = img_shape[1]
+    image_channels = img_shape[2]
 
     model = Sequential()
-
-    model.add(Dense(256, input_shape=noise_shape))
-    model.add(LeakyReLU(alpha=0.2))
-    model.add(BatchNormalization(momentum=0.8))
-    model.add(Dense(512))
-    model.add(LeakyReLU(alpha=0.2))
-    model.add(BatchNormalization(momentum=0.8))
-    model.add(Dense(1024))
-    model.add(LeakyReLU(alpha=0.2))
-    model.add(BatchNormalization(momentum=0.8))
+    model.add(Dense(image_height * image_width * 128, input_shape=(noise_dim,), kernel_initializer=weight_initializer))
+    #model.add(BatchNormalization(epsilon=BN_EPSILON, momentum=BN_MOMENTUM))
+    #model.add(LeakyReLU(alpha=leaky_relu_slope))
+    model.add(Reshape((image_heigth, image_width, 128)))
     
-    model.add(Dense(np.prod(img_shape), activation='tanh'))
-    model.add(Reshape(img_shape))
+    model = transposed_conv(model, 512, ksize=5, stride_size=1)
+    model.add(Dropout(dropout_rate))
+    model = transposed_conv(model, 256, ksize=5, stride_size=2)
+    model.add(Dropout(dropout_rate))
+    model = transposed_conv(model, 128, ksize=5, stride_size=2)
+    model = transposed_conv(model, 64, ksize=5, stride_size=2)
+    model = transposed_conv(model, 32, ksize=5, stride_size=2)
+    
+    model.add(Dense(3, activation='tanh', kernel_initializer=weight_initializer))
 
     #model.summary()
 
-    noise = Input(shape=noise_shape)
+    noise = Input( shape=(noise_dim,) )
     img = model(noise)
 
     return Model(noise, img)
 
 def build_discriminator(img_shape):
 
+    image_height = img_shape[0]
+    image_width = img_shape[1]
+    image_channels = img_shape[2]
 
     model = Sequential()
+    model.add(ConvSN2D(64, (5, 5), strides=(1,1), padding='same', use_bias=False, input_shape=[image_height, image_width, image_channels], kernel_initializer=weight_initializer))
+    #model.add(BatchNormalization(epsilon=BN_EPSILON, momentum=BN_MOMENTUM))
+    model.add(LeakyReLU(alpha=leaky_relu_slope))
+    #model.add(Dropout(dropout_rate))
+    
+    model = convSN(model, 64, ksize=5, stride_size=2)
+    #model = convSN(model, 128, ksize=3, stride_size=1)
+    model = convSN(model, 128, ksize=5, stride_size=2)
+    #model = convSN(model, 256, ksize=3, stride_size=1)
+    model = convSN(model, 256, ksize=5, stride_size=2)
+    #model = convSN(model, 512, ksize=3, stride_size=1)
+    #model.add(Dropout(dropout_rate))
 
-    model.add(Flatten(input_shape=img_shape))
-    model.add(Dense(512))
-    model.add(LeakyReLU(alpha=0.2))
-    model.add(Dense(256))
-    model.add(LeakyReLU(alpha=0.2))
-    model.add(Dense(1, activation='sigmoid'))
+    model.add(Flatten())
+    model.add(DenseSN(1, activation='sigmoid'))
 
     #model.summary()
 
