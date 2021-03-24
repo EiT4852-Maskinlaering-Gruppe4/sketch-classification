@@ -3,11 +3,9 @@ import numpy as np
 import tensorflow as tf
 import tensorflow.keras
 
-from tensorflow.keras.layers import Input, Dense, Reshape, Flatten, LeakyReLU, BatchNormalization, Conv2D
+from tensorflow.keras.layers import Input, Dense, Reshape, Flatten, LeakyReLU, BatchNormalization, Conv2D, Conv2DTranspose, Dropout
 from tensorflow.keras.models import Sequential, Model
 from tensorflow.keras.optimizers import Adam
-
-from SpectralNormalizationKeras import ConvSN2D
 
 import matplotlib.pyplot as plt
 import time
@@ -24,87 +22,84 @@ IMG_SHAPE = (IMG_ROWS, IMG_COLS, CHANNELS)
 
 # Change these!!
 TRAINER = 'jon'
-BATCH_SIZE = 256
+BATCH_SIZE = 32
 EPOCHS = 1
 MODELNAME = f"{TRAINER}/b{BATCH_SIZE}-e{EPOCHS}.h5"
 
 CATEGORY = "Dog"
 PATH_TO_IMAGES = f"{os.getcwd()}/gan/Images/{CATEGORY}"
 
-# Layer templates
-leaky_relu_slope = 1
-weight_init_std = 1
-weight_init_mean = 1
-dropout_rate = 1
-weight_initializer = tf.keras.initializers.TruncatedNormal(stddev=weight_init_std, mean=weight_init_mean, seed=42)
-def transposed_conv(model, out_channels, ksize, stride_size, ptype='same'):
-    model.add(Conv2DTranspose(out_channels, (ksize, ksize),
-                              strides=(stride_size, stride_size), padding=ptype, 
-                              kernel_initializer=weight_initializer, use_bias=False))
-    model.add(BatchNormalization())
-    model.add(ReLU())
-    return model
-
-def convSN(model, out_channels, ksize, stride_size):
-    model.add(ConvSN2D(out_channels, (ksize, ksize), strides=(stride_size, stride_size), padding='same',
-                     kernel_initializer=weight_initializer, use_bias=False))
-    model.add(BatchNormalization())
-    model.add(LeakyReLU(alpha=leaky_relu_slope))
-    #model.add(Dropout(dropout_rate))
-    return model
+# Layer constants
+noise_dim = 128
+noise_shape = (noise_dim,)
+leaky_relu_slope = 0.1
+weight_init_std = 0.02
+weight_init_mean = 0
+dropout_rate = 0.4
+#weight_initializer = tf.keras.initializers.TruncatedNormal(stddev=weight_init_std, mean=weight_init_mean, seed=42)
 
 def build_generator(img_shape):
-    noise_dim = 128
 
     image_height = img_shape[0]
     image_width = img_shape[1]
     image_channels = img_shape[2]
 
     model = Sequential()
-    model.add(Dense(image_height * image_width * 128, input_shape=(noise_dim,), kernel_initializer=weight_initializer))
-    #model.add(BatchNormalization(epsilon=BN_EPSILON, momentum=BN_MOMENTUM))
-    #model.add(LeakyReLU(alpha=leaky_relu_slope))
-    model.add(Reshape((image_heigth, image_width, 128)))
-    
-    model = transposed_conv(model, 512, ksize=5, stride_size=1)
-    model.add(Dropout(dropout_rate))
-    model = transposed_conv(model, 256, ksize=5, stride_size=2)
-    model.add(Dropout(dropout_rate))
-    model = transposed_conv(model, 128, ksize=5, stride_size=2)
-    model = transposed_conv(model, 64, ksize=5, stride_size=2)
-    model = transposed_conv(model, 32, ksize=5, stride_size=2)
-    
-    model.add(Dense(3, activation='tanh', kernel_initializer=weight_initializer))
 
+    model.add(Dense(16 * 16 * 128, activation='relu', input_shape=noise_shape))
+    model.add(BatchNormalization(momentum=0.9))
+    model.add(LeakyReLU(alpha=leaky_relu_slope))
+    model.add(Reshape((16, 16, 128)))
+
+    model.add(Conv2D(128, 5, strides=1,padding='same'))
+    model.add(BatchNormalization(momentum=0.9))
+    model.add(LeakyReLU(alpha=leaky_relu_slope))
+
+    model.add(Conv2DTranspose(128, 4, strides=2,padding='same'))
+    model.add(LeakyReLU(alpha=leaky_relu_slope))
+
+    model.add(Conv2D(128, 5, strides=1,padding='same'))
+    model.add(BatchNormalization(momentum=0.9))
+    model.add(LeakyReLU(alpha=leaky_relu_slope))
+
+    model.add(Conv2D(128, 5, strides=1,padding='same'))
+    model.add(BatchNormalization(momentum=0.9))
+    model.add(LeakyReLU(alpha=leaky_relu_slope))
+
+    model.add(Conv2D(3, 5, strides=1,padding='same', activation='tanh'))
+    
     #model.summary()
 
-    noise = Input( shape=(noise_dim,) )
+    
+
+    noise = Input( shape=noise_shape )
     img = model(noise)
 
     return Model(noise, img)
 
 def build_discriminator(img_shape):
 
-    image_height = img_shape[0]
-    image_width = img_shape[1]
-    image_channels = img_shape[2]
-
     model = Sequential()
-    model.add(ConvSN2D(64, (5, 5), strides=(1,1), padding='same', use_bias=False, input_shape=[image_height, image_width, image_channels], kernel_initializer=weight_initializer))
-    #model.add(BatchNormalization(epsilon=BN_EPSILON, momentum=BN_MOMENTUM))
+
+    model.add(Conv2D(128, 3, strides=1, padding='same', input_shape=img_shape))
+    model.add(BatchNormalization(momentum=0.9))
     model.add(LeakyReLU(alpha=leaky_relu_slope))
-    #model.add(Dropout(dropout_rate))
-    
-    model = convSN(model, 64, ksize=5, stride_size=2)
-    #model = convSN(model, 128, ksize=3, stride_size=1)
-    model = convSN(model, 128, ksize=5, stride_size=2)
-    #model = convSN(model, 256, ksize=3, stride_size=1)
-    model = convSN(model, 256, ksize=5, stride_size=2)
-    #model = convSN(model, 512, ksize=3, stride_size=1)
-    #model.add(Dropout(dropout_rate))
+
+    model.add(Conv2D(128, 4, strides=2, padding='same'))
+    model.add(BatchNormalization(momentum=0.9))
+    model.add(LeakyReLU(alpha=leaky_relu_slope))
+
+    model.add(Conv2D(128, 4, strides=2, padding='same'))
+    model.add(BatchNormalization(momentum=0.9))
+    model.add(LeakyReLU(alpha=leaky_relu_slope))
+
+    model.add(Conv2D(128, 4, strides=2, padding='same'))
+    model.add(BatchNormalization(momentum=0.9))
+    model.add(LeakyReLU(alpha=leaky_relu_slope))
 
     model.add(Flatten())
-    model.add(DenseSN(1, activation='sigmoid'))
+    model.add(Dropout(dropout_rate))
+    model.add(Dense(1, activation='sigmoid'))
 
     #model.summary()
 
@@ -115,6 +110,7 @@ def build_discriminator(img_shape):
 
 def train(n_epochs, batch_size, generator, discriminator, combined_model, image_data):
 
+    print ("Starting training with %d epochs and batch size %d" % (n_epochs, batch_size))
     half_batch = int(batch_size/2)
 
     for epoch in range(1,n_epochs + 1):
@@ -123,7 +119,7 @@ def train(n_epochs, batch_size, generator, discriminator, combined_model, image_
         imgs = image_data[idx]
 
 
-        noise = np.random.normal(0, 1, (half_batch, 100))
+        noise = np.random.normal(0, 1, (half_batch, noise_dim))
         gen_imgs = generator.predict(noise)
         gen_imgs += 1
         gen_imgs /= 2
@@ -136,7 +132,7 @@ def train(n_epochs, batch_size, generator, discriminator, combined_model, image_
 
 
         # Train generator
-        noise = np.random.normal(0, 1, (batch_size, 100))
+        noise = np.random.normal(0, 1, (batch_size, noise_dim))
 
         # The generator wants to train for 100% validity, ie. 1
         valid_y = np.array([1] * batch_size)
@@ -161,9 +157,9 @@ def main():
 
 
     # 
-    z = Input(shape=(100,))
+    z = Input(shape=noise_shape)
     img = generator(z)
-
+    
     # In the combined model, only the generator will be trained
     discriminator.trainable = False 
 
@@ -175,14 +171,14 @@ def main():
     combined_model.compile(loss='binary_crossentropy', optimizer=optimizer)
 
     # Import images, convert to float [0 1]
-    image_data = import_images(PATH_TO_IMAGES, (IMG_ROWS,IMG_COLS), n_images=5000) / 255
+    image_data = import_images(PATH_TO_IMAGES, (IMG_ROWS,IMG_COLS), n_images=1000) / 255
     image_data = image_data[:,:,:,::-1] # BRG -> RGB
 
     # Train generator and discriminator together
     train(EPOCHS, BATCH_SIZE, generator, discriminator, combined_model, image_data)
 
     # Generate image from model
-    noise = np.random.normal(0,1,(1,100))
+    noise = np.random.normal(0,1,(1,noise_dim))
 
     gen_image = generator.predict(noise)
     gen_image += 1
