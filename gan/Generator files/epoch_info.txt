@@ -1,0 +1,5 @@
+Approx. number of epochs:
+Dog generator: 240
+House: 200
+Cat: 175
+Flower: 95
